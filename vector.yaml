@@ -5,6 +5,8 @@ sources:
   my_file_source:
     type: "file"
     include: ["./test.log"]
+  internal_metrics:
+    type: internal_metrics
 
 data_dir: "./vector_data"
 
@@ -26,3 +28,8 @@ sinks:
       type: disk
       max_size: 268435488
       when_full: block
+  prometheus_output:
+    type: "prometheus_exporter"
+    inputs:
+      - "internal_metrics"
+    address: "0.0.0.0:9090"

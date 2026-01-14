@@ -1,0 +1,61 @@
+. The Immediate Failure: Connection Refused
+Metric: vector_http_client_errors_total Current Status: CRITICAL
+
+Your logs are not reaching the destination. The metrics show distinct connection errors for my_sink_id.
+
+Plaintext
+
+vector_http_client_errors_total{component_id="my_sink_id", error_kind="...Connection refused..."} 11
+What it tells you: Vector tried to connect to your HTTP endpoint 11 times and was rejected every time (OS error 61).
+
+Action: Check if the external log store is down, or if the URL/Port in your vector.toml is incorrect.
+
+2. The Safety Net: Buffer Usage
+Metric: vector_buffer_byte_size vs vector_buffer_max_byte_size Current Status: SAFE (Working)
+
+Because the sink is down, Vector has switched to writing logs to your disk buffer.
+
+Plaintext
+
+# How much space you are currently using (1.3 KB)
+vector_buffer_byte_size{buffer_id="my_sink_id", ...} 1352 
+
+# Your configured limit (~268 MB)
+vector_buffer_max_byte_size{buffer_id="my_sink_id", ...} 268435488
+What it tells you: You have used 1352 bytes out of 268 MB. You have plenty of runway.
+
+Alert Rule: Trigger a warning when buffer_byte_size > 80% of max_byte_size. If this fills up, you will start dropping logs.
+
+3. The "Silent" Failure: Stalled Events
+Metric: vector_buffer_events Current Status: STALLED
+
+Plaintext
+
+# Total events entered the buffer
+vector_buffer_received_events_total{buffer_id="my_sink_id"...} 6
+
+# Total events currently sitting in the buffer
+vector_buffer_events{buffer_id="my_sink_id"...} 6
+What it tells you: 6 events came in, and 6 are still sitting there. Zero have been successfully sent.
+
+Monitor: If vector_buffer_events is growing while vector_component_sent_events_total (for the sink) is flat, your pipeline is clogged.
+
+4. The Data Loss Signal (Missing is Good)
+Metric: component_discarded_events_total Current Status: HEALTHY
+
+I searched your dump for vector_component_discarded_events_total and it is not present.
+
+What it tells you: You have not lost any data yet. Vector successfully moved the logs from the file source into the disk buffer.
+
+Monitor: If this metric appears in your scrape, it means the disk buffer is full or corrupted, and logs are being deleted.
+
+Summary of what is happening right now:
+Your Go app wrote 6 log lines to the file.
+
+Vector read them (Source my_file_source is healthy).
+
+Vector tried to send them to my_sink_id and failed (Connection refused).
+
+Vector moved those 6 lines into the Disk Buffer.
+
+Vector is now waiting and retrying.
