@@ -1,0 +1,28 @@
+acknowledgements:
+  enabled: true
+
+sources:
+  my_file_source:
+    type: "file"
+    include: ["./test.log"]
+
+data_dir: "./vector_data"
+
+sinks:
+  my_console_sink:
+    inputs:
+      - "my_file_source"
+    type: "console"
+    encoding:
+      codec: "text"
+  my_sink_id:
+    type: http
+    inputs:
+      - "my_file_source"
+    uri: https://localhost:9000/
+    encoding:
+      codec: json
+    buffer:
+      type: disk
+      max_size: 268435488
+      when_full: block
